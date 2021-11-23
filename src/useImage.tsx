@@ -1,4 +1,4 @@
-import React, {useState} from 'react'
+import React, {userEffect, userRef, useState} from 'react'
 import imagePromiseFactory from './imagePromiseFactory'
 
 export type useImageProps = {
@@ -41,7 +41,16 @@ export default function useImage({
   const [, setIsLoading] = useState(true)
   const sourceList = removeBlankArrayElements(stringToArray(srcList))
   const sourceKey = sourceList.join('')
+  const isMounted = useRef(true)
 
+  useEffect(() => {
+    if (isMounted.current) {
+      return () => {
+        isMounted.current = false
+      }
+    }
+  }, [])
+  
   if (!cache[sourceKey]) {
     // create promise to loop through sources and try to load one
     cache[sourceKey] = {
@@ -57,14 +66,14 @@ export default function useImage({
     // when not using suspense, update state to force a rerender
     .then((src) => {
       cache[sourceKey] = {...cache[sourceKey], cache: 'resolved', src}
-      if (!useSuspense) setIsLoading(false)
+      if (!useSuspense && isMounted.current) setIsLoading(false)
     })
 
     // if no source was found, or if another error occured, update cache
     // when not using suspense, update state to force a rerender
     .catch((error) => {
       cache[sourceKey] = {...cache[sourceKey], cache: 'rejected', error}
-      if (!useSuspense) setIsLoading(false)
+      if (!useSuspense && isMounted.current) setIsLoading(false)
     })
 
   if (cache[sourceKey].cache === 'resolved') {
